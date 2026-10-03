@@ -54,3 +54,4 @@ build/
 .cache/
 tmp/
 temp/
+*.cast
