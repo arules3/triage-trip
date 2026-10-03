@@ -2,6 +2,9 @@
 
 > Autonomous AI Regression Triage & Provenance CLI. Pinpoint breaking contract changes introduced by AI coding tools in seconds.
 
+<p align="center">
+  <img src="./assets/demo.gif" alt="AI-Blackbox Demo" width="700">
+</p>
 ---
 
 ## The Problem
