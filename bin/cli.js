@@ -1,11 +1,13 @@
 #!/usr/bin/env node
+
 import { Command } from 'commander';
 import pc from 'picocolors';
 import ora from 'ora';
+import { confirm } from '@inquirer/prompts';
 import 'dotenv/config';
 import { getRecentChanges } from '../src/git.js';
-import { getRecentCursorPrompts } from '../src/cursor.js'; // <-- 1. Import cursor helper
 import { triageRegression } from '../src/triage.js';
+import { extractDiff, applyDiff } from '../src/patch.js';
 
 const program = new Command();
 
@@ -19,27 +21,50 @@ program
   .description('Diagnose why your build or code is failing')
   .argument('<query_or_error>', 'The error message or description of failure')
   .option('-c, --commits <number>', 'Number of recent commits to analyze', '5')
+  .option('-y, --yes', 'Automatically apply the patch without asking', false)
   .action(async (errorInput, options) => {
     console.log(pc.bold(pc.cyan('\n■ AI-Blackbox Triage Engine\n')));
-    const spinner = ora('Reading recent git stream & cursor prompts...').start();
 
+    const spinner = ora('Reading recent git changes...').start();
+    let diagnosis = '';
+    
     try {
       const commitCount = parseInt(options.commits, 10);
-      
-      // Fetch both Git diffs and local Cursor prompts
       const changes = await getRecentChanges(commitCount);
-      const prompts = getRecentCursorPrompts(5); // <-- 2. Read SQLite prompts
 
-      spinner.text = 'Isolating structural contract shifts and prompt attribution...';
-      
-      // Pass prompts as 3rd parameter
-      const diagnosis = await triageRegression(errorInput, changes, prompts); // <-- 3. Pass prompts here
+      spinner.text = 'Isolating structural contract shifts and AST regressions...';
+      diagnosis = await triageRegression(errorInput, changes);
 
       spinner.succeed(pc.green('Root cause isolated.'));
       console.log('\n' + diagnosis + '\n');
     } catch (err) {
       spinner.fail(pc.red('Triage failed: ' + err.message));
       process.exit(1);
+    }
+
+    // Attempt to extract patch from LLM output
+    const patch = extractDiff(diagnosis);
+
+    if (patch) {
+      let shouldApply = options.yes;
+
+      if (!shouldApply) {
+        shouldApply = await confirm({
+          message: 'Apply this patch to your working tree now?',
+          default: true,
+        });
+      }
+
+      if (shouldApply) {
+        const patchSpinner = ora('Applying patch via git apply...').start();
+        try {
+          await applyDiff(patch);
+          patchSpinner.succeed(pc.green('Patch applied successfully to working tree.'));
+          console.log(pc.dim('Run `git diff` to review or `git commit` to save the fix.\n'));
+        } catch (err) {
+          patchSpinner.fail(pc.red(err.message));
+        }
+      }
     }
   });
 
