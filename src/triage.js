@@ -1,3 +1,4 @@
+// src/triage.js
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -11,6 +12,10 @@ export async function triageRegression(errorDescription, gitContext, cursorPromp
 
   const systemInstructions = `
 You are an expert developer tool agent specializing in Git diff analysis, AST regression diagnosis, and code patch generation.
+
+When analyzing the regression:
+- Focus on contract/schema shifts between callers and callees (e.g. key renames in returned objects, changed parameter signatures).
+- Prefer aligning property access to match the actual returned schema (e.g. renaming \`profile.userId\` to \`profile.user_id\`) rather than applying defensive null checks or fallbacks like ternary operators or 'UNKNOWN', unless explicitly intended.
 
 When generating the "Patch" section:
 - Always use a valid, standard unified diff format enclosed in \`\`\`diff.
@@ -42,7 +47,7 @@ Provide a strict, concise triage output formatted with terminal-friendly Markdow
   if (anthropicKey) {
     const anthropic = new Anthropic({ apiKey: anthropicKey });
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-latest',
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1500,
       system: systemInstructions,
       messages: [{ role: 'user', content: userPrompt }]

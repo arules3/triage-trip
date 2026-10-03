@@ -7,6 +7,7 @@ import { confirm } from '@inquirer/prompts';
 import 'dotenv/config';
 import { getRecentChanges } from '../src/git.js';
 import { triageRegression } from '../src/triage.js';
+import { getRecentCursorPrompts } from '../src/cursor.js';
 import { extractDiff, applyDiff } from '../src/patch.js';
 
 const program = new Command();
@@ -25,15 +26,18 @@ program
   .action(async (errorInput, options) => {
     console.log(pc.bold(pc.cyan('\n■ AI-Blackbox Triage Engine\n')));
 
-    const spinner = ora('Reading recent git changes...').start();
+    const spinner = ora('Reading recent git changes & Cursor prompts...').start();
     let diagnosis = '';
     
     try {
       const commitCount = parseInt(options.commits, 10);
-      const changes = await getRecentChanges(commitCount);
+      const [changes, prompts] = await Promise.all([
+        getRecentChanges(commitCount),
+        Promise.resolve().then(() => getRecentCursorPrompts(10))
+      ]);
 
       spinner.text = 'Isolating structural contract shifts and AST regressions...';
-      diagnosis = await triageRegression(errorInput, changes);
+      diagnosis = await triageRegression(errorInput, changes, prompts);
 
       spinner.succeed(pc.green('Root cause isolated.'));
       console.log('\n' + diagnosis + '\n');
