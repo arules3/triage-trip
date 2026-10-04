@@ -1,17 +1,31 @@
 {
-  "name": "ai-blackbox",
-  "version": "1.0.0",
-  "description": "",
+  "name": "triage-trip",
+  "version": "0.1.0",
+  "description": "Autonomous CLI to pinpoint and patch regressions introduced by AI code assistants",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "cursor",
+    "ai",
+    "triage",
+    "git",
+    "debugging"
+  ],
+  "author": "Anuj Prakash",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arules3/ai-blackbox.git"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
   "type": "module",
   "bin": {
-    "ai-blackbox": "./bin/cli.js"
+    "triage-trip": "bin/cli.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

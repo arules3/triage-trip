@@ -13,7 +13,7 @@ import { extractDiff, applyDiff } from '../src/patch.js';
 const program = new Command();
 
 program
-  .name('ai-blackbox')
+  .name('triage-trip')
   .description('Autonomous triage for regressions introduced by AI edits')
   .version('0.1.0');
 

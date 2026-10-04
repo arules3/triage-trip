@@ -1,146 +1,123 @@
-# `ai-blackbox`
+Markdown
+# triage-trip 
 
-> Autonomous AI Regression Triage & Provenance CLI. Pinpoint breaking contract changes introduced by AI coding tools in seconds.
+> Autonomous CLI to pinpoint and patch regressions introduced by AI code assistants (Cursor, Copilot).
 
-<p align="center">
-  <img src="./assets/demo.gif" alt="AI-Blackbox Demo" width="700">
-</p>
----
+![triage-trip Demo](assets/demo.gif)
 
 ## The Problem
+When you use AI coding assistants to refactor or draft features, errors often slip through:
+- Subtle schema property renames (`userId` ➔ `user_id`).
+- Dropped function arguments or breaking contract shifts.
+- Regressions that aren't caught until 3 commits later.
 
-AI coding assistants (Cursor, GitHub Copilot, Windsurf) dramatically accelerate drafting and refactoring code. However, they frequently cause **silent contract drift**:
+Developers lose 30+ minutes digging through hundreds of lines of AI diffs trying to figure out which prompt broke the build.
 
-* An AI renames an object key or subtle schema attribute (e.g., `userId` ➔ `user_id`).
-* Standard linters and compilers pass because the syntax is completely valid.
-* Downstream modules crash 2–3 commits later with cryptic runtime errors (`TypeError: Cannot read properties of undefined`).
-* Developers spend 20–30 minutes manually inspecting multi-file diffs, running `git bisect`, and searching for what changed.
-
----
-
-## What `ai-blackbox` Does
-
-`ai-blackbox` connects the dots across your development environment to trace the exact lineage of a regression:
-
-```text
-[ User Prompt in IDE ] ➔ [ AI Generated Diff ] ➔ [ Git Commit ] ➔ [ Runtime Error ]
-                                                                          │
-                                                                   ai-blackbox triage
-                                                                          │
-                                                                          ▼
-                                                       • Exact Root Cause & Commit
-                                                       • Attributed AI Prompt
-                                                       • Semantic Contract Shift
-                                                       • Clean Unified Diff Patch
-
-```
-
-1. **Inspects Git History:** Automatically reads uncommitted working changes and recent commits using `simple-git`.
-2. **Extracts AI Session Provenance:** Scans local IDE storage (e.g., Cursor's local SQLite database `state.vscdb`) to retrieve recent prompts and user instructions.
-3. **Triages Semantic Drift:** Correlates the runtime stack trace with recent AST modifications and prompts via the OpenAI API to deliver an instant diagnostic report.
+## How It Works
+`triage-trip` connects runtime failures back to their origin:
+1. **Reads Local Git Stream:** Analyzes unstaged changes and recent commit diffs.
+2. **Inspects Cursor Provenance:** Reads local IDE session SQLite databases (`state.vscdb`) to identify the exact human prompt that generated the regression.
+3. **Isolates Semantic Shifts:** Determines contract and schema breaks.
+4. **Interactive In-Memory Patching:** Applies clean unified diffs directly to your working tree via `git apply` with a single confirmation.
 
 ---
 
-## Installation
+## Quick Start
 
-### Prerequisites
-
-* **Node.js** (v18 or higher, ESM native)
-* An active **OpenAI API Key**
-
-### Local Setup
+Run instantly without global installation:
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/ai-blackbox.git
-cd ai-blackbox
+npx triage-trip triage "TypeError: Cannot read properties of undefined (reading 'toUpperCase')"
+Or install globally:
 
-# Install dependencies
+Bash
+npm install -g triage-trip
+Environment Setup
+Set your preferred LLM API key:
+
+Bash
+export ANTHROPIC_API_KEY="your-anthropic-key"
+# or
+export OPENAI_API_KEY="your-openai-key"
+Usage
+Diagnose an Error Trace
+Bash
+triage-trip triage "Cannot read properties of undefined (reading 'toUpperCase')"
+Auto-Apply Patches Instantly
+Skip the confirmation prompt to patch immediately:
+
+Bash
+triage-trip triage "ReferenceError: getUserProfile is not defined" --yes
+Inspect More Commits
+Bash
+triage-trip triage "SyntaxError: Unexpected token" --commits 10
+License
+MIT
+
+
+---
+
+### Step 3: Commit and Publish
+
+```bash
+# Stage the updated doc and new GIF
+git add README.md assets/demo.gif package.json bin/cli.js
+
+# Commit
+git commit -m "docs: rebrand to triage-trip with new demo gif"
+
+# Push to your remote
+git push origin main
+
+# Publish live on npm
+npm publish --access public
+
+
+## Inspiration & Ecosystem
+
+Large engineering organizations (like Uber with their internal autonomous debugging agents) have long relied on automated bisect and triage systems to catch regressions before they reach staging. 
+
+However, existing enterprise tooling wasn't built for the AI code assistant era. When an LLM refactors multi-file repositories in Cursor or Copilot, conventional stack traces don't tell you which human prompt caused the contract shift. 
+
+`triage-trip` bridges that gap for every developer: a zero-overhead local CLI that brings automated root-cause isolation, Cursor prompt provenance, and in-memory patching right to your terminal.
+
+## Security & Privacy
+- **Read-Only SQLite Access:** `triage-trip` reads local IDE databases (`state.vscdb`) in strict read-only mode (`readonly: true`). It never modifies editor settings or session files.
+- **Direct LLM Communication:** Your repository context and diffs are sent directly to Anthropic or OpenAI using your own local environment API keys. No intermediate servers, telemetry trackers, or external logging daemons.
+
+## Compatibility
+- **IDEs:** Cursor (Full prompt provenance support via local Composer storage), VS Code / Windsurf (Git diff & contract triage)
+- **Platforms:** macOS, Linux, Windows (WSL / PowerShell)
+- **Runtime:** Node.js `>= 18.0.0`
+
+## CLI Options
+
+| Flag | Default | Description |
+| :--- | :--- | :--- |
+| `-c, --commits <num>` | `5` | Number of recent commits to inspect alongside unstaged working diffs |
+| `-y, --yes` | `false` | Automatically apply the proposed patch without an interactive prompt |
+| `-V, --version` | | Display current version |
+| `-h, --help` | | Display help and usage options |
+
+## Development
+
+```bash
+git clone [https://github.com/arules3/triage-trip.git](https://github.com/arules3/triage-trip.git)
+cd triage-trip
 npm install
-
-# Link executable globally (optional for direct CLI access)
 npm link
 
-```
 
-Set your OpenAI API key in your terminal environment or add it to a `.env` file:
+## Current Status & Roadmap
 
-```bash
-export OPENAI_API_KEY="sk-..."
+### What's Working Today (`v0.1.0`)
+- **Git Context Analysis:** Reads unstaged working tree diffs and recent commit logs.
+- **Cursor Prompt Provenance:** Direct read-only extraction from local `state.vscdb` to link regressions to specific Composer prompts.
+- **Root Cause Isolation:** LLM-assisted semantic contract shift detection.
+- **Interactive Patching:** Clean, in-memory `git apply` with user confirmation prompts (`--yes` fallback).
 
-```
-
----
-
-## Quickstart & Usage
-
-Run the triage engine directly against any runtime error message or stack trace:
-
-```bash
-# Via npm script
-node bin/cli.js triage "TypeError: Cannot read properties of undefined (reading 'toUpperCase')"
-
-# Or globally (if linked)
-ai-blackbox triage "TypeError: Cannot read properties of undefined (reading 'toUpperCase')"
-
-```
-
-### Options
-
-* `<query_or_error>` *(required)*: The error message or failing test description.
-* `-c, --commits <number>`: Number of recent commits to analyze (default: `5`).
-
----
-
-## Example Output
-
-```markdown
-■ AI-Blackbox Triage Engine
-
-✔ Root cause isolated.
-
-1. **Root Cause**: The error occurs in `app.js` at line 6, where `profile.userId` is accessed. 
-   The breaking change was introduced in commit `b83c577` ("refactor: update user schema"), 
-   which modified the `getUserProfile` function in `user.js`.
-
-2. **Attributed Prompt**: "Rename userId to user_id across the returned profile object."
-
-3. **The Shift**: The `getUserProfile` function now returns `user_id` instead of `userId`, 
-   causing `profile.userId` to evaluate to `undefined`.
-
-4. **Patch**:
---- a/app.js
-+++ b/app.js
-@@ -6,2 +6,2 @@
--  console.log(`Loading dashboard for user ID: ${profile.userId.toUpperCase()}`);
-+  console.log(`Loading dashboard for user ID: ${profile.user_id.toUpperCase()}`);
-
-```
-
----
-
-## Project Structure
-
-```text
-ai-blackbox/
-├── bin/
-│   └── cli.js            # CLI commands & terminal output formatting (Commander, Ora, Picocolors)
-├── src/
-│   ├── git.js            # Working tree and commit diff extraction (simple-git)
-│   ├── cursor.js         # Cursor SQLite database parser (better-sqlite3)
-│   └── triage.js         # OpenAI triage diagnostic engine (GPT-4o)
-├── package.json
-└── README.md
-
-```
-
----
-
-## Roadmap
-
-* [x] Git diff & commit stream extraction
-* [x] Local SQLite prompt extraction for Cursor Composer
-* [x] OpenAI regression diagnostic engine
-* [ ] Auto-patch application flag (`--fix` via `git apply`)
-* [ ] Multi-IDE adapters (GitHub Copilot Chat, Windsurf Cascade, Claude Code)
-* [ ] GitHub Action runner for automated PR failure triage
+### On the Horizon
+- [ ] **Automated Test Verification:** Automatically run project test suites (`npm test`, `pytest`) to verify fixes before finalizing patches.
+- [ ] **Expanded IDE Provenance:** Support for Windsurf (`cascade`), VS Code Copilot Chat, and Claude Code logs.
+- [ ] **GitHub Action / CI Mode:** Comment directly on failed PR runs with the attributed prompt and proposed fix.
+- [ ] **Deterministic AST Diffing:** Local offline schema diffing before LLM invocation to cut latency and token usage.
