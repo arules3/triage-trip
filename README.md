@@ -115,9 +115,3 @@ npm link
 - **Cursor Prompt Provenance:** Direct read-only extraction from local `state.vscdb` to link regressions to specific Composer prompts.
 - **Root Cause Isolation:** LLM-assisted semantic contract shift detection.
 - **Interactive Patching:** Clean, in-memory `git apply` with user confirmation prompts (`--yes` fallback).
-
-### On the Horizon
-- [ ] **Automated Test Verification:** Automatically run project test suites (`npm test`, `pytest`) to verify fixes before finalizing patches.
-- [ ] **Expanded IDE Provenance:** Support for Windsurf (`cascade`), VS Code Copilot Chat, and Claude Code logs.
-- [ ] **GitHub Action / CI Mode:** Comment directly on failed PR runs with the attributed prompt and proposed fix.
-- [ ] **Deterministic AST Diffing:** Local offline schema diffing before LLM invocation to cut latency and token usage.
