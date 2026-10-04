@@ -24,7 +24,7 @@ program
   .option('-c, --commits <number>', 'Number of recent commits to analyze', '5')
   .option('-y, --yes', 'Automatically apply the patch without asking', false)
   .action(async (errorInput, options) => {
-    console.log(pc.bold(pc.cyan('\n■ AI-Blackbox Triage Engine\n')));
+    console.log(pc.bold(pc.cyan('\n■ Triage-Trip Engine\n')));
 
     const spinner = ora('Reading recent git changes & Cursor prompts...').start();
     let diagnosis = '';

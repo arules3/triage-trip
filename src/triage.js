@@ -41,6 +41,22 @@ Provide a strict, concise triage output formatted with terminal-friendly Markdow
 2. **Attributed Prompt**: Name the specific Cursor prompt that likely caused this diff (if found in the list; otherwise state none).
 3. **The Shift**: Explain what broke (e.g., schema key rename, dropped parameter, async/await omission).
 4. **Patch**: Provide the exact unified diff adhering strictly to the system diff formatting instructions.
+
+CRITICAL RULES FOR THE PATCH:
+- Never delete the entire file. The patch must FIX the bug in the existing file.
+- Format strictly as a valid unified diff block in \`\`\`diff.
+- Target the file accurately:
+  --- a/<path>
+  +++ b/<path>
+- Only change the breaking line(s). Keep 1-2 lines of unchanged surrounding context lines above and below without '+' or '-'.
+- Example format:
+\`\`\`diff
+--- a/app.js
++++ b/app.js
+@@ -6,3 +6,3 @@
+-  console.log(\`Loading dashboard for user ID: \${profile.userId.toUpperCase()}\`);
++  console.log(\`Loading dashboard for user ID: \${profile.user_id.toUpperCase()}\`);
+\`\`\`
 `;
 
   // 1. Prefer Anthropic if key exists

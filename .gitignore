@@ -55,5 +55,4 @@ build/
 tmp/
 temp/
 *.cast
-app.js
 user.js
