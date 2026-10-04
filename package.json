@@ -4,7 +4,7 @@
   "description": "Autonomous CLI to pinpoint and patch regressions introduced by AI code assistants",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/patch.test.js"
   },
   "keywords": [
     "cursor",

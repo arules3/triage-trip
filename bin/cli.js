@@ -28,11 +28,11 @@ program
 
     const spinner = ora('Reading recent git changes & Cursor prompts...').start();
     let diagnosis = '';
-    
+
     try {
       const commitCount = parseInt(options.commits, 10);
       const [changes, prompts] = await Promise.all([
-        getRecentChanges(commitCount),
+        getRecentChanges(commitCount, errorInput),
         Promise.resolve().then(() => getRecentCursorPrompts(10))
       ]);
 
@@ -60,15 +60,20 @@ program
       }
 
       if (shouldApply) {
-        const patchSpinner = ora('Applying patch via git apply...').start();
+        const patchSpinner = ora('Applying patch to working tree...').start();
         try {
-          await applyDiff(patch);
+          const res = await applyDiff(patch);
           patchSpinner.succeed(pc.green('Patch applied successfully to working tree.'));
+          if (res?.modifiedFiles && res.modifiedFiles.length > 0) {
+            console.log(pc.dim(`Modified: ${res.modifiedFiles.join(', ')}`));
+          }
           console.log(pc.dim('Run `git diff` to review or `git commit` to save the fix.\n'));
         } catch (err) {
-          patchSpinner.fail(pc.red(err.message));
+          patchSpinner.fail(pc.red('Patch application failed: ' + err.message));
         }
       }
+    } else {
+      console.log(pc.dim('ℹ No executable patch block was detected in the diagnostic report.\n'));
     }
   });
 

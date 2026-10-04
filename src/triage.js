@@ -23,18 +23,29 @@ When generating the "Patch" section:
 - Ensure @@ -line,count +line,count @@ markers accurately match the context.
 - Include 1-2 lines of unchanged surrounding context above and below the change.
 - Only touch lines that actually exist in the file.
-- Do not invent comments in context lines.
+- Match the exact current text and casing from the active working file on disk as the '-' (removed) lines.
 `.trim();
+
+  const activeFilesSection = gitContext.activeFileContents && Object.keys(gitContext.activeFileContents).length > 0
+    ? `Active Working Files on Disk (Current File Contents & Line Numbers):\n${JSON.stringify(gitContext.activeFileContents, null, 2)}`
+    : '';
 
   const userPrompt = `
 User problem / error trace:
 "${errorDescription}"
 
+${activeFilesSection}
+
 Recent Cursor Composer Prompts:
 ${JSON.stringify(cursorPrompts, null, 2)}
 
 Recent Repository Git Stream (Working diff + Commits):
-${JSON.stringify(gitContext, null, 2)}
+${JSON.stringify({
+  branch: gitContext.branch,
+  untrackedFiles: gitContext.untrackedFiles,
+  workingDiff: gitContext.workingDiff,
+  recentCommits: gitContext.recentCommits,
+}, null, 2)}
 
 Provide a strict, concise triage output formatted with terminal-friendly Markdown:
 1. **Root Cause**: Pinpoint the file, line, and commit/working diff where the breaking change occurred.
@@ -43,18 +54,19 @@ Provide a strict, concise triage output formatted with terminal-friendly Markdow
 4. **Patch**: Provide the exact unified diff adhering strictly to the system diff formatting instructions.
 
 CRITICAL RULES FOR THE PATCH:
-- Never delete the entire file. The patch must FIX the bug in the existing file.
-- Format strictly as a valid unified diff block in \`\`\`diff.
+- The '-' (removed) lines MUST match the EXACT text and casing currently in the file shown in "Active Working Files on Disk".
 - Target the file accurately:
   --- a/<path>
   +++ b/<path>
+- Never delete the entire file. The patch must FIX the bug in the existing file.
+- Format strictly as a valid unified diff block in \`\`\`diff.
 - Only change the breaking line(s). Keep 1-2 lines of unchanged surrounding context lines above and below without '+' or '-'.
 - Example format:
 \`\`\`diff
 --- a/app.js
 +++ b/app.js
 @@ -6,3 +6,3 @@
--  console.log(\`Loading dashboard for user ID: \${profile.userId.toUpperCase()}\`);
+-  console.log(\`Loading dashboard for user ID: \${profile.userid.toUpperCase()}\`);
 +  console.log(\`Loading dashboard for user ID: \${profile.user_id.toUpperCase()}\`);
 \`\`\`
 `;

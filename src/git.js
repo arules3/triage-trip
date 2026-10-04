@@ -1,4 +1,6 @@
 import { simpleGit } from 'simple-git';
+import fs from 'fs';
+import path from 'path';
 
 const git = simpleGit();
 
@@ -13,7 +15,126 @@ function sanitizeDiff(diffStr, maxChars = 4000) {
   return diffStr;
 }
 
-export async function getRecentChanges(maxCommits = 3) {
+const BINARY_EXTENSIONS = new Set([
+  '.gif', '.png', '.jpg', '.jpeg', '.cast', '.ico', '.pdf', '.zip',
+  '.tar', '.gz', '.db', '.sqlite', '.sqlite3', '.bin', '.wasm'
+]);
+
+/**
+ * Collects active working copy text for relevant files with line numbers.
+ * Gives the LLM exact source of truth for current file state, eliminating hallucinated diffs.
+ */
+function collectActiveFiles(status, commitDiffs, errorInput = '', maxFiles = 5) {
+  const candidates = new Set();
+
+  // 1. Extract file paths from error input / stack trace
+  if (errorInput) {
+    const fileMatches = errorInput.match(/(?:[a-zA-Z0-9_\-\.\/]+\/)?([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)/g) || [];
+    for (const match of fileMatches) {
+      const cleanPath = match.replace(/^(?:file:\/\/\/|\/)/, '');
+      candidates.add(cleanPath);
+      candidates.add(path.basename(cleanPath));
+    }
+  }
+
+  // 2. Working tree files from git status
+  const statusFiles = [
+    ...(status.modified || []),
+    ...(status.staged || []),
+    ...(status.created || []),
+    ...(status.not_added || []),
+  ];
+  for (const f of statusFiles) candidates.add(f);
+
+  // 3. Files from latest commit diff
+  if (commitDiffs.length > 0 && commitDiffs[0].diff) {
+    const diffFiles = commitDiffs[0].diff.match(/(?:---|\+\+\+)\s+[ab]\/([^\s\n]+)/g) || [];
+    for (const df of diffFiles) {
+      const p = df.replace(/^(?:---|\+\+\+)\s+[ab]\//, '');
+      candidates.add(p);
+    }
+  }
+
+  const activeFiles = {};
+  let count = 0;
+
+  for (const candidate of candidates) {
+    if (count >= maxFiles) break;
+
+    // Resolve file
+    let fullPath = path.resolve(process.cwd(), candidate);
+    if (!fs.existsSync(fullPath)) {
+      // Try resolving by basename in workspace
+      const baseName = path.basename(candidate);
+      const found = findCandidateFile(process.cwd(), baseName);
+      if (found) fullPath = found;
+      else continue;
+    }
+
+    const ext = path.extname(fullPath).toLowerCase();
+    if (BINARY_EXTENSIONS.has(ext)) continue;
+    if (fullPath.includes('node_modules') || fullPath.includes('.git')) continue;
+
+    try {
+      const stat = fs.statSync(fullPath);
+      if (!stat.isFile() || stat.size > 50000) continue;
+
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const relPath = path.relative(process.cwd(), fullPath);
+
+      const lines = content.split('\n');
+      const formatted = lines
+        .slice(0, 150)
+        .map((line, idx) => `${idx + 1}| ${line}`)
+        .join('\n');
+
+      activeFiles[relPath] = formatted;
+      count++;
+
+      // Also inspect relative local imports for JS/TS
+      if (['.js', '.ts', '.jsx', '.tsx', '.mjs'].includes(ext)) {
+        const importMatches = content.match(/(?:import|require)\s*\(?['"](\.[^'"]+)['"]/g) || [];
+        for (const imp of importMatches) {
+          const importRel = imp.match(/['"](\.[^'"]+)['"]/)?.[1];
+          if (importRel) {
+            const dir = path.dirname(fullPath);
+            let importedPath = path.resolve(dir, importRel);
+            if (!fs.existsSync(importedPath) && fs.existsSync(importedPath + '.js')) {
+              importedPath = importedPath + '.js';
+            }
+            if (fs.existsSync(importedPath) && !activeFiles[path.relative(process.cwd(), importedPath)]) {
+              candidates.add(path.relative(process.cwd(), importedPath));
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return activeFiles;
+}
+
+function findCandidateFile(dir, baseName, depth = 0) {
+  if (depth > 4) return null;
+  const ignored = new Set(['node_modules', '.git', 'dist', 'build', '.cache', 'coverage']);
+
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const ent of entries) {
+      if (ent.isDirectory()) {
+        if (!ignored.has(ent.name)) {
+          const found = findCandidateFile(path.join(dir, ent.name), baseName, depth + 1);
+          if (found) return found;
+        }
+      } else if (ent.isFile() && ent.name === baseName) {
+        return path.join(dir, ent.name);
+      }
+    }
+  } catch {}
+  return null;
+}
+
+export async function getRecentChanges(maxCommits = 3, errorInput = '') {
   const isRepo = await git.checkIsRepo();
   if (!isRepo) {
     throw new Error('Not inside a valid Git repository.');
@@ -27,6 +148,9 @@ export async function getRecentChanges(maxCommits = 3) {
     ':!yarn.lock',
     ':!pnpm-lock.yaml',
     ':!bun.lockb',
+    ':!assets/*',
+    ':!*.gif',
+    ':!*.cast',
   ];
 
   const unstagedDiff = await git.diff(['--', '.', ...lockfileIgnores]);
@@ -58,10 +182,13 @@ export async function getRecentChanges(maxCommits = 3) {
     })
   );
 
+  const activeFileContents = collectActiveFiles(status, commitDiffs, errorInput);
+
   return {
     branch: status.current,
-    untrackedFiles: status.not_added, // Tells the LLM if newly created files exist
+    untrackedFiles: status.not_added,
     workingDiff: sanitizeDiff(combinedWorkingDiff) || null,
     recentCommits: commitDiffs,
+    activeFileContents,
   };
 }
