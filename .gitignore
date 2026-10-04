@@ -55,4 +55,7 @@ build/
 tmp/
 temp/
 *.cast
+
+# User files
 user.js
+app.js
