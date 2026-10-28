@@ -37,12 +37,19 @@ program
       ]);
 
       spinner.text = 'Isolating structural contract shifts and AST regressions...';
-      diagnosis = await triageRegression(errorInput, changes, prompts);
+      diagnosis = await triageRegression(errorInput, changes, prompts, () => {
+        // Stop spinner before the first streamed token so ora doesn't garble stdout
+        spinner.stop();
+        process.stdout.write('\n');
+      });
 
-      spinner.succeed(pc.green('Root cause isolated.'));
-      console.log('\n' + diagnosis + '\n');
+      console.log('\n' + pc.green('✓ Root cause isolated.') + '\n');
     } catch (err) {
-      spinner.fail(pc.red('Triage failed: ' + err.message));
+      if (spinner.isSpinning) {
+        spinner.fail(pc.red('Triage failed: ' + err.message));
+      } else {
+        console.error(pc.red('\nTriage failed: ' + err.message));
+      }
       process.exit(1);
     }
 
