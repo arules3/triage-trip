@@ -1,11 +1,12 @@
 {
   "name": "triage-trip",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Autonomous CLI to pinpoint and patch regressions introduced by AI code assistants",
   "main": "index.js",
   "scripts": {
-    "test": "node test/patch.test.js && node test/simulation.test.js",
-    "test:sim": "node test/simulation.test.js"
+    "test": "node test/patch.test.js && node test/simulation.test.js && node test/streaming.test.js",
+    "test:sim": "node test/simulation.test.js",
+    "test:stream": "node test/streaming.test.js"
   },
   "keywords": [
     "cursor",

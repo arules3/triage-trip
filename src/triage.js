@@ -3,10 +3,19 @@ import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { cleanGitContext } from './utils.js';
 
-export async function triageRegression(errorDescription, gitContext, editorPrompts = [], onStreamStart) {
+export async function triageRegression(
+  errorDescription,
+  gitContext,
+  editorPrompts = [],
+  onStreamStart,
+  deps = {},
+) {
   if (!errorDescription || typeof errorDescription !== 'string' || !errorDescription.trim()) {
     throw new Error('Query or error trace cannot be empty.');
   }
+
+  const AnthropicClient = deps.Anthropic || Anthropic;
+  const OpenAIClient = deps.OpenAI || OpenAI;
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
@@ -101,7 +110,7 @@ CRITICAL RULES FOR THE PATCH:
 
   // 1. Prefer Anthropic if key exists
   if (anthropicKey) {
-    const anthropic = new Anthropic({ apiKey: anthropicKey });
+    const anthropic = new AnthropicClient({ apiKey: anthropicKey });
     const stream = await anthropic.messages.create({
       model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest',
       max_tokens: 1500,
@@ -122,7 +131,7 @@ CRITICAL RULES FOR THE PATCH:
   }
 
   // 2. Fallback to OpenAI
-  const openai = new OpenAI({ apiKey: openaiKey });
+  const openai = new OpenAIClient({ apiKey: openaiKey });
   const stream = await openai.chat.completions.create({
     model: process.env.OPENAI_MODEL || 'gpt-4o',
     temperature: 0.1,
